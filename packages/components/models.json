@@ -245,6 +245,10 @@
             "name": "azureChatOpenAI_LlamaIndex",
             "models": [
                 {
+                    "label": "gpt-4o",
+                    "name": "gpt-4o"
+                },
+                {
                     "label": "gpt-4",
                     "name": "gpt-4"
                 },
