@@ -1,0 +1,370 @@
+diff --git a/dist/chat_models.cjs b/dist/chat_models.cjs
+index 664174941c9134937cb816bef27da117da7d984a..355a972f471e73df8963fc7b1d631da3e4e5a8ec 100644
+--- a/dist/chat_models.cjs
++++ b/dist/chat_models.cjs
+@@ -77,8 +77,8 @@ function openAIResponseToChatMessage(message) {
+     }
+ }
+ function _convertDeltaToMessageChunk(
+-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+-delta, defaultRole) {
++    // eslint-disable-next-line @typescript-eslint/no-explicit-any
++    delta, defaultRole) {
+     const role = delta.role ?? defaultRole;
+     const content = delta.content ?? "";
+     let additional_kwargs;
+@@ -235,9 +235,9 @@ class ChatOpenAI extends chat_models_1.BaseChatModel {
+             azureOpenAIApiDeploymentName: "azure_openai_api_deployment_name",
+         };
+     }
+-    constructor(fields, 
+-    /** @deprecated */
+-    configuration) {
++    constructor(fields,
++        /** @deprecated */
++        configuration) {
+         super(fields ?? {});
+         Object.defineProperty(this, "lc_serializable", {
+             enumerable: true,
+@@ -329,6 +329,12 @@ class ChatOpenAI extends chat_models_1.BaseChatModel {
+             writable: true,
+             value: false
+         });
++        Object.defineProperty(this, "stream_options", {
++            enumerable: true,
++            configurable: true,
++            writable: true,
++            value: { include_usage: false }
++        });
+         Object.defineProperty(this, "maxTokens", {
+             enumerable: true,
+             configurable: true,
+@@ -415,31 +421,31 @@ class ChatOpenAI extends chat_models_1.BaseChatModel {
+         });
+         this.openAIApiKey =
+             fields?.apiKey ??
+-                fields?.openAIApiKey ??
+-                (0, env_1.getEnvironmentVariable)("OPENAI_API_KEY");
++            fields?.openAIApiKey ??
++            (0, env_1.getEnvironmentVariable)("OPENAI_API_KEY");
+         this.apiKey = this.openAIApiKey;
+         this.azureOpenAIApiKey =
+             fields?.azureOpenAIApiKey ??
+-                (0, env_1.getEnvironmentVariable)("AZURE_OPENAI_API_KEY");
++            (0, env_1.getEnvironmentVariable)("AZURE_OPENAI_API_KEY");
+         this.azureADTokenProvider = fields?.azureADTokenProvider ?? undefined;
+         if (!this.azureOpenAIApiKey && !this.apiKey && !this.azureADTokenProvider) {
+             throw new Error("OpenAI or Azure OpenAI API key or Token Provider not found");
+         }
+         this.azureOpenAIApiInstanceName =
+             fields?.azureOpenAIApiInstanceName ??
+-                (0, env_1.getEnvironmentVariable)("AZURE_OPENAI_API_INSTANCE_NAME");
++            (0, env_1.getEnvironmentVariable)("AZURE_OPENAI_API_INSTANCE_NAME");
+         this.azureOpenAIApiDeploymentName =
+             fields?.azureOpenAIApiDeploymentName ??
+-                (0, env_1.getEnvironmentVariable)("AZURE_OPENAI_API_DEPLOYMENT_NAME");
++            (0, env_1.getEnvironmentVariable)("AZURE_OPENAI_API_DEPLOYMENT_NAME");
+         this.azureOpenAIApiVersion =
+             fields?.azureOpenAIApiVersion ??
+-                (0, env_1.getEnvironmentVariable)("AZURE_OPENAI_API_VERSION");
++            (0, env_1.getEnvironmentVariable)("AZURE_OPENAI_API_VERSION");
+         this.azureOpenAIBasePath =
+             fields?.azureOpenAIBasePath ??
+-                (0, env_1.getEnvironmentVariable)("AZURE_OPENAI_BASE_PATH");
++            (0, env_1.getEnvironmentVariable)("AZURE_OPENAI_BASE_PATH");
+         this.organization =
+             fields?.configuration?.organization ??
+-                (0, env_1.getEnvironmentVariable)("OPENAI_ORGANIZATION");
++            (0, env_1.getEnvironmentVariable)("OPENAI_ORGANIZATION");
+         this.modelName = fields?.model ?? fields?.modelName ?? this.model;
+         this.model = this.modelName;
+         this.modelKwargs = fields?.modelKwargs ?? {};
+@@ -457,6 +463,7 @@ class ChatOpenAI extends chat_models_1.BaseChatModel {
+         this.stopSequences = this?.stop;
+         this.user = fields?.user;
+         this.streaming = fields?.streaming ?? false;
++        this.stream_options = fields?.stream_options ?? { include_usage: false };
+         if (this.azureOpenAIApiKey || this.azureADTokenProvider) {
+             if (!this.azureOpenAIApiInstanceName && !this.azureOpenAIBasePath) {
+                 throw new Error("Azure OpenAI API instance name not found");
+@@ -518,6 +525,9 @@ class ChatOpenAI extends chat_models_1.BaseChatModel {
+             tool_choice: options?.tool_choice,
+             response_format: options?.response_format,
+             seed: options?.seed,
++            ...(this.stream_options !== undefined
++                ? { stream_options: this.stream_options }
++                : { include_usage: false }),
+             ...this.modelKwargs,
+         };
+         return params;
+@@ -539,8 +549,12 @@ class ChatOpenAI extends chat_models_1.BaseChatModel {
+         };
+         let defaultRole;
+         const streamIterable = await this.completionWithRetry(params, options);
++        let usage;
+         for await (const data of streamIterable) {
+             const choice = data?.choices[0];
++            if (data.usage) {
++                usage = data.usage;
++            }
+             if (!choice) {
+                 continue;
+             }
+@@ -575,6 +589,20 @@ class ChatOpenAI extends chat_models_1.BaseChatModel {
+             // eslint-disable-next-line no-void
+             void runManager?.handleLLMNewToken(generationChunk.text ?? "", newTokenIndices, undefined, undefined, undefined, { chunk: generationChunk });
+         }
++        if (usage) {
++            const generationChunk = new outputs_1.ChatGenerationChunk({
++                message: new messages_1.AIMessageChunk({
++                    content: "",
++                    usage_metadata: {
++                        input_tokens: usage.prompt_tokens,
++                        output_tokens: usage.completion_tokens,
++                        total_tokens: usage.total_tokens,
++                    },
++                }),
++                text: "",
++            });
++            yield generationChunk;
++        }
+         if (options.signal?.aborted) {
+             throw new Error("AbortError");
+         }
+@@ -739,8 +767,8 @@ class ChatOpenAI extends chat_models_1.BaseChatModel {
+             if (openAIMessage.additional_kwargs.function_call?.arguments) {
+                 try {
+                     count += await this.getNumTokens(
+-                    // Remove newlines and spaces
+-                    JSON.stringify(JSON.parse(openAIMessage.additional_kwargs.function_call?.arguments)));
++                        // Remove newlines and spaces
++                        JSON.stringify(JSON.parse(openAIMessage.additional_kwargs.function_call?.arguments)));
+                 }
+                 catch (error) {
+                     console.error("Error parsing function arguments", error, JSON.stringify(openAIMessage.additional_kwargs.function_call));
+@@ -943,16 +971,16 @@ class ChatOpenAI extends chat_models_1.BaseChatModel {
+ }
+ exports.ChatOpenAI = ChatOpenAI;
+ function isZodSchema(
+-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+-input) {
++    // eslint-disable-next-line @typescript-eslint/no-explicit-any
++    input) {
+     // Check for a characteristic method of Zod schemas
+     return typeof input?.parse === "function";
+ }
+ function isStructuredOutputMethodParams(x
+-// eslint-disable-next-line @typescript-eslint/no-explicit-any
++    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ ) {
+     return (x !== undefined &&
+         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         typeof x.schema ===
+-            "object");
++        "object");
+ }
+diff --git a/dist/chat_models.d.ts b/dist/chat_models.d.ts
+index dbb7cf74dd3fa2b712302a872ae0966ce070d4b3..a1d9e71fc061929978f5a05fdb2263d5c708e211 100644
+--- a/dist/chat_models.d.ts
++++ b/dist/chat_models.d.ts
+@@ -84,6 +84,9 @@ export declare class ChatOpenAI<CallOptions extends ChatOpenAICallOptions = Chat
+     user?: string;
+     timeout?: number;
+     streaming: boolean;
++    stream_options?: {
++        include_usage: boolean
++    };
+     maxTokens?: number;
+     logprobs?: boolean;
+     topLogprobs?: number;
+@@ -100,9 +103,9 @@ export declare class ChatOpenAI<CallOptions extends ChatOpenAICallOptions = Chat
+     protected clientConfig: ClientOptions;
+     constructor(fields?: Partial<OpenAIChatInput> & Partial<AzureOpenAIInput> & BaseChatModelParams & {
+         configuration?: ClientOptions & LegacyOpenAIInput;
+-    }, 
+-    /** @deprecated */
+-    configuration?: ClientOptions & LegacyOpenAIInput);
++    },
++        /** @deprecated */
++        configuration?: ClientOptions & LegacyOpenAIInput);
+     bindTools(tools: (Record<string, unknown> | StructuredToolInterface)[], kwargs?: Partial<CallOptions>): RunnableInterface<BaseLanguageModelInput, AIMessageChunk, CallOptions>;
+     /**
+      * Get the parameters used to invoke the model
+diff --git a/dist/chat_models.js b/dist/chat_models.js
+index 919d9032c71df832e6ebd8826eb84fbbcf24f2ca..40e9a34222ea127c01551f74efc6ce8adb6f07be 100644
+--- a/dist/chat_models.js
++++ b/dist/chat_models.js
+@@ -73,8 +73,8 @@ function openAIResponseToChatMessage(message) {
+     }
+ }
+ function _convertDeltaToMessageChunk(
+-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+-delta, defaultRole) {
++    // eslint-disable-next-line @typescript-eslint/no-explicit-any
++    delta, defaultRole) {
+     const role = delta.role ?? defaultRole;
+     const content = delta.content ?? "";
+     let additional_kwargs;
+@@ -231,9 +231,9 @@ export class ChatOpenAI extends BaseChatModel {
+             azureOpenAIApiDeploymentName: "azure_openai_api_deployment_name",
+         };
+     }
+-    constructor(fields, 
+-    /** @deprecated */
+-    configuration) {
++    constructor(fields,
++        /** @deprecated */
++        configuration) {
+         super(fields ?? {});
+         Object.defineProperty(this, "lc_serializable", {
+             enumerable: true,
+@@ -325,6 +325,12 @@ export class ChatOpenAI extends BaseChatModel {
+             writable: true,
+             value: false
+         });
++        Object.defineProperty(this, "stream_options", {
++            enumerable: true,
++            configurable: true,
++            writable: true,
++            value: false
++        });
+         Object.defineProperty(this, "maxTokens", {
+             enumerable: true,
+             configurable: true,
+@@ -411,31 +417,31 @@ export class ChatOpenAI extends BaseChatModel {
+         });
+         this.openAIApiKey =
+             fields?.apiKey ??
+-                fields?.openAIApiKey ??
+-                getEnvironmentVariable("OPENAI_API_KEY");
++            fields?.openAIApiKey ??
++            getEnvironmentVariable("OPENAI_API_KEY");
+         this.apiKey = this.openAIApiKey;
+         this.azureOpenAIApiKey =
+             fields?.azureOpenAIApiKey ??
+-                getEnvironmentVariable("AZURE_OPENAI_API_KEY");
++            getEnvironmentVariable("AZURE_OPENAI_API_KEY");
+         this.azureADTokenProvider = fields?.azureADTokenProvider ?? undefined;
+         if (!this.azureOpenAIApiKey && !this.apiKey && !this.azureADTokenProvider) {
+             throw new Error("OpenAI or Azure OpenAI API key or Token Provider not found");
+         }
+         this.azureOpenAIApiInstanceName =
+             fields?.azureOpenAIApiInstanceName ??
+-                getEnvironmentVariable("AZURE_OPENAI_API_INSTANCE_NAME");
++            getEnvironmentVariable("AZURE_OPENAI_API_INSTANCE_NAME");
+         this.azureOpenAIApiDeploymentName =
+             fields?.azureOpenAIApiDeploymentName ??
+-                getEnvironmentVariable("AZURE_OPENAI_API_DEPLOYMENT_NAME");
++            getEnvironmentVariable("AZURE_OPENAI_API_DEPLOYMENT_NAME");
+         this.azureOpenAIApiVersion =
+             fields?.azureOpenAIApiVersion ??
+-                getEnvironmentVariable("AZURE_OPENAI_API_VERSION");
++            getEnvironmentVariable("AZURE_OPENAI_API_VERSION");
+         this.azureOpenAIBasePath =
+             fields?.azureOpenAIBasePath ??
+-                getEnvironmentVariable("AZURE_OPENAI_BASE_PATH");
++            getEnvironmentVariable("AZURE_OPENAI_BASE_PATH");
+         this.organization =
+             fields?.configuration?.organization ??
+-                getEnvironmentVariable("OPENAI_ORGANIZATION");
++            getEnvironmentVariable("OPENAI_ORGANIZATION");
+         this.modelName = fields?.model ?? fields?.modelName ?? this.model;
+         this.model = this.modelName;
+         this.modelKwargs = fields?.modelKwargs ?? {};
+@@ -453,6 +459,7 @@ export class ChatOpenAI extends BaseChatModel {
+         this.stopSequences = this?.stop;
+         this.user = fields?.user;
+         this.streaming = fields?.streaming ?? false;
++        this.stream_options = fields?.stream_options ?? {include_usage: false};
+         if (this.azureOpenAIApiKey || this.azureADTokenProvider) {
+             if (!this.azureOpenAIApiInstanceName && !this.azureOpenAIBasePath) {
+                 throw new Error("Azure OpenAI API instance name not found");
+@@ -514,6 +521,9 @@ export class ChatOpenAI extends BaseChatModel {
+             tool_choice: options?.tool_choice,
+             response_format: options?.response_format,
+             seed: options?.seed,
++            ...(options?.stream_options !== undefined
++                ? { stream_options: options.stream_options }
++                : {}),
+             ...this.modelKwargs,
+         };
+         return params;
+@@ -535,8 +545,12 @@ export class ChatOpenAI extends BaseChatModel {
+         };
+         let defaultRole;
+         const streamIterable = await this.completionWithRetry(params, options);
++        let usage;
+         for await (const data of streamIterable) {
+             const choice = data?.choices[0];
++            if (data.usage) {
++                usage = data.usage;
++            }
+             if (!choice) {
+                 continue;
+             }
+@@ -571,6 +585,20 @@ export class ChatOpenAI extends BaseChatModel {
+             // eslint-disable-next-line no-void
+             void runManager?.handleLLMNewToken(generationChunk.text ?? "", newTokenIndices, undefined, undefined, undefined, { chunk: generationChunk });
+         }
++        if (usage) {
++            const generationChunk = new ChatGenerationChunk({
++                message: new AIMessageChunk({
++                    content: "",
++                    usage_metadata: {
++                        input_tokens: usage.prompt_tokens,
++                        output_tokens: usage.completion_tokens,
++                        total_tokens: usage.total_tokens,
++                    },
++                }),
++                text: "",
++            });
++            yield generationChunk;
++        }
+         if (options.signal?.aborted) {
+             throw new Error("AbortError");
+         }
+@@ -735,8 +763,8 @@ export class ChatOpenAI extends BaseChatModel {
+             if (openAIMessage.additional_kwargs.function_call?.arguments) {
+                 try {
+                     count += await this.getNumTokens(
+-                    // Remove newlines and spaces
+-                    JSON.stringify(JSON.parse(openAIMessage.additional_kwargs.function_call?.arguments)));
++                        // Remove newlines and spaces
++                        JSON.stringify(JSON.parse(openAIMessage.additional_kwargs.function_call?.arguments)));
+                 }
+                 catch (error) {
+                     console.error("Error parsing function arguments", error, JSON.stringify(openAIMessage.additional_kwargs.function_call));
+@@ -938,16 +966,16 @@ export class ChatOpenAI extends BaseChatModel {
+     }
+ }
+ function isZodSchema(
+-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+-input) {
++    // eslint-disable-next-line @typescript-eslint/no-explicit-any
++    input) {
+     // Check for a characteristic method of Zod schemas
+     return typeof input?.parse === "function";
+ }
+ function isStructuredOutputMethodParams(x
+-// eslint-disable-next-line @typescript-eslint/no-explicit-any
++    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ ) {
+     return (x !== undefined &&
+         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         typeof x.schema ===
+-            "object");
++        "object");
+ }
+diff --git a/dist/types.d.ts b/dist/types.d.ts
+index ec518691f3d937c1c5ec877c530c9deb855ee9f3..adf1b7f25f94d1e661104b43c612fcdd5e05000f 100644
+--- a/dist/types.d.ts
++++ b/dist/types.d.ts
+@@ -24,6 +24,8 @@ export declare interface OpenAIBaseInput {
+     user?: string;
+     /** Whether to stream the results or not. Enabling disables tokenUsage reporting */
+     streaming: boolean;
++    /** Tells Open AI to report usage when streaming */
++    stream_options?: { include_usage: boolean };
+     /**
+      * Model name to use
+      * Alias for `model`
