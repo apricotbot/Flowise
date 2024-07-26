@@ -16,6 +16,7 @@ import type { Document } from '@langchain/core/documents'
 import { BaseRetriever } from '@langchain/core/retrievers'
 import { RESPONSE_TEMPLATE } from '../../chains/ConversationalRetrievalQAChain/prompts'
 import { addImagesToMessages, llmSupportsVision } from '../../../src/multiModalUtils'
+import { UsageHandler } from '../../../src/usageHandler'
 
 class ConversationalRetrievalToolAgent_Agents implements INode {
     label: string
@@ -127,7 +128,9 @@ class ConversationalRetrievalToolAgent_Agents implements INode {
 
         if (isStreamable) {
             const handler = new CustomChainHandler(options.socketIO, options.socketIOClientId)
-            res = await executor.invoke({ input }, { callbacks: [loggerHandler, handler, ...callbacks] })
+            const customerId = nodeData.inputs?.vars?.customerId ?? '';
+            const usageHandler = new UsageHandler(customerId);
+            res = await executor.invoke({ input }, { callbacks: [loggerHandler, handler, usageHandler, ...callbacks] })
             if (res.sourceDocuments) {
                 options.socketIO.to(options.socketIOClientId).emit('sourceDocuments', flatten(res.sourceDocuments))
                 sourceDocuments = res.sourceDocuments
