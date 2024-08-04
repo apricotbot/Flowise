@@ -247,7 +247,7 @@ const similaritySearchVectorWithScore = async (query: number[], k: number, vecto
             anns_field: vectorStore.vectorField,
             topk: k.toString(),
             metric_type: vectorStore.indexCreateParams.metric_type,
-            params: vectorStore.indexSearchParams
+            params: '' + vectorStore.indexSearchParams
         },
         output_fields: outputFields,
         vector_type: DataType.FloatVector,
