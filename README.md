@@ -44,9 +44,9 @@ Download and Install [NodeJS](https://nodejs.org/en/download) >= 18.15.0
 
 1. Go to `docker` folder at the root of the project
 2. Copy `.env.example` file, paste it into the same location, and rename to `.env`
-3. `docker-compose up -d`
+3. `docker compose up -d`
 4. Open [http://localhost:3000](http://localhost:3000)
-5. You can bring the containers down by `docker-compose stop`
+5. You can bring the containers down by `docker compose stop`
 
 ### Docker Image
 
@@ -105,6 +105,14 @@ Flowise has 3 different modules in a single mono repository.
     ```bash
     pnpm build
     ```
+
+    <details>
+    <summary>Exit code 134 (JavaScript heap out of memory)</summary>  
+      If you get this error when running the above `build` script, try increasing the Node.js heap size and run the script again:
+    
+        export NODE_OPTIONS="--max-old-space-size=4096"
+        pnpm build
+    </details>
 
 5. Start the app:
 
