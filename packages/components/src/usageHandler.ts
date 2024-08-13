@@ -18,39 +18,31 @@ export class UsageHandler extends BaseCallbackHandler {
     }
 
     handleLLMStart(_llm: Serialized, prompts: string[]) {
-        try {
-            const prompt = prompts[0];
-            const tokens = this.encoding?.encode(prompt);
-            if (tokens) {
-                const url = `${process.env.USAGE_URL}/usage`;
-                axios.post(url, {
-                    customerId: this.customerId,
-                    usage: {
-                        input_tokens: tokens.length
-                    }
-                });
-            }
-        } catch (e) {
-            console.log(e);
+        const prompt = prompts[0];
+        const tokens = this.encoding?.encode(prompt);
+        if (tokens) {
+            const url = `${process.env.USAGE_URL}/usage`;
+            axios.post(url, {
+                customerId: this.customerId,
+                usage: {
+                    input_tokens: tokens.length
+                }
+            }).catch((e) => console.log(e));
         }
     }
 
     handleLLMEnd(output: LLMResult) {
-        try {
-            const prompt = output?.generations[0][0].text;
-            const tokens = this.encoding?.encode(prompt);
+        const prompt = output?.generations[0][0].text;
+        const tokens = this.encoding?.encode(prompt);
 
-            if (tokens) {
-                const url = `${process.env.USAGE_URL}/usage`;
-                axios.post(url, {
-                    customerId: this.customerId,
-                    usage: {
-                        output_tokens: tokens.length
-                    }
-                });
-            }
-        } catch (e) {
-            console.log(e);
+        if (tokens) {
+            const url = `${process.env.USAGE_URL}/usage`;
+            axios.post(url, {
+                customerId: this.customerId,
+                usage: {
+                    output_tokens: tokens.length
+                }
+            }).catch((e) => console.log(e));
         }
     }
 }
