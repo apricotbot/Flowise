@@ -16,19 +16,17 @@ export class UsageHandler extends BaseCallbackHandler {
         this.encoding = encodingForModel(model)
     }
 
-    handleLLMStart(_llm: Serialized, prompts: string[]) {
+    async handleLLMStart(_llm: Serialized, prompts: string[]) {
         const prompt = prompts[0]
         const tokens = this.encoding?.encode(prompt)
         if (tokens) {
             const url = `${process.env.USAGE_URL}/usage`
-            axios
-                .post(url, {
-                    customerId: this.customerId,
-                    usage: {
-                        input_tokens: tokens.length
-                    }
-                })
-                .catch((e) => console.log(e))
+            await axios.post(url, {
+                customerId: this.customerId,
+                usage: {
+                    input_tokens: tokens.length
+                }
+            })
         }
     }
 
