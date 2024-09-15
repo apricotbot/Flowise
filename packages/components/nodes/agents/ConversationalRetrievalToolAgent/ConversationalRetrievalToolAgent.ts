@@ -128,8 +128,8 @@ class ConversationalRetrievalToolAgent_Agents implements INode {
 
         if (isStreamable) {
             const handler = new CustomChainHandler(options.socketIO, options.socketIOClientId)
-            const customerId = nodeData.inputs?.vars?.customerId ?? '';
-            const usageHandler = new UsageHandler(customerId, nodeData?.inputs?.model?.modelName);
+            const customerId = nodeData.inputs?.vars?.customerId ?? ''
+            const usageHandler = new UsageHandler(customerId, nodeData?.inputs?.model?.modelName)
             res = await executor.invoke({ input }, { callbacks: [loggerHandler, handler, usageHandler, ...callbacks] })
             if (res.sourceDocuments) {
                 options.socketIO.to(options.socketIOClientId).emit('sourceDocuments', flatten(res.sourceDocuments))

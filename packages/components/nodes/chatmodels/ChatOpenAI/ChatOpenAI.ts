@@ -181,7 +181,7 @@ class ChatOpenAI_ChatModels implements INode {
             temperature: parseFloat(temperature),
             modelName,
             openAIApiKey,
-            streaming: streaming ?? true,
+            streaming: streaming ?? true
             // stream_options: { include_usage: true }
         }
 
