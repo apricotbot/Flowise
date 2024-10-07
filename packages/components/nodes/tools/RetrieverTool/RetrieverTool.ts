@@ -24,7 +24,7 @@ class Retriever_Tools implements INode {
     constructor() {
         this.label = 'Retriever Tool'
         this.name = 'retrieverTool'
-        this.version = 2.0
+        this.version = 2.1
         this.type = 'RetrieverTool'
         this.icon = 'retrievertool.svg'
         this.category = 'Tools'
@@ -77,7 +77,13 @@ class Retriever_Tools implements INode {
                 step: 0.1,
                 default: 0.3,
                 optional: true
-            }
+            },
+            {
+                label: 'Randomize',
+                name: 'randomize',
+                type: 'boolean',
+                optional: true
+            },
         ]
     }
 
@@ -121,6 +127,7 @@ class Retriever_Tools implements INode {
         const retriever = nodeData.inputs?.retriever as BaseRetriever
         const returnSourceDocuments = nodeData.inputs?.returnSourceDocuments as boolean
         const runRerank = nodeData.inputs?.runRerank as boolean
+        const randomize = nodeData.inputs?.randomize as boolean
         const rerankMinScore = nodeData.inputs?.rerankMinScore as number
         const rerankTopN = nodeData.inputs?.rerankTopN as number
 
@@ -134,6 +141,10 @@ class Retriever_Tools implements INode {
 
             if (runRerank) {
                 docs = await this._rerank(docs, input, rerankTopN, rerankMinScore)
+            }
+
+            if (randomize) {
+                docs = docs.sort(() => Math.random() - 0.5);
             }
 
             const content = docs.map((doc) => doc.pageContent).join('\n\n')
