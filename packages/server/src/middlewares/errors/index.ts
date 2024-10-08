@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
 import { InternalFlowiseError } from '../../errors/internalFlowiseError'
+import sendSlackMessage from '../../services/slack/slack'
 
 // we need eslint because we have to pass next arg for the error middleware
 // eslint-disable-next-line
@@ -14,6 +15,7 @@ async function errorHandlerMiddleware(err: InternalFlowiseError, req: Request, r
     }
     res.setHeader('Content-Type', 'application/json')
     res.status(displayedError.statusCode).json(displayedError)
+    sendSlackMessage(err);
 }
 
 export default errorHandlerMiddleware
